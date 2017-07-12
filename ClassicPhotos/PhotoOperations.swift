@@ -32,7 +32,7 @@ class PendingOperations {
   lazy var downloadQueue: OperationQueue = {
     var queue = OperationQueue()
     queue.name = "Download queue"
-    queue.maxConcurrentOperationCount = 1
+//    queue.maxConcurrentOperationCount = 1
     return queue
   }()
   
@@ -40,7 +40,7 @@ class PendingOperations {
   lazy var filtrationQueue: OperationQueue = {
     var queue = OperationQueue()
     queue.name = "Image Filtration queue"
-    queue.maxConcurrentOperationCount = 1
+//    queue.maxConcurrentOperationCount = 1
     return queue
   }()
 }
