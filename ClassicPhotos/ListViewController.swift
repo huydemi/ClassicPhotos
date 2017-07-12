@@ -55,7 +55,9 @@ class ListViewController: UITableViewController {
       cell.textLabel?.text = "Failed to load"
     case .new, .downloaded:
       indicator.startAnimating()
-      startOperationsForPhotoRecord(photoDetails,indexPath: indexPath)
+      if (!tableView.isDragging && !tableView.isDecelerating) {
+        startOperationsForPhotoRecord(photoDetails,indexPath: indexPath)
+      }
     }
     
     return cell
@@ -138,6 +140,63 @@ class ListViewController: UITableViewController {
     
     pendingOperations.filtrationsInProgress[indexPath] = filterer
     pendingOperations.filtrationQueue.addOperation(filterer)
+  }
+  
+  override func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+    suspendAllOperations()
+  }
+  
+  override func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+    if !decelerate {
+      loadImagesForOnscreenCells()
+      resumeAllOperations()
+    }
+  }
+  
+  override func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+    loadImagesForOnscreenCells()
+    resumeAllOperations()
+  }
+  
+  func suspendAllOperations () {
+    pendingOperations.downloadQueue.isSuspended = true
+    pendingOperations.filtrationQueue.isSuspended = true
+  }
+  
+  func resumeAllOperations () {
+    pendingOperations.downloadQueue.isSuspended = false
+    pendingOperations.filtrationQueue.isSuspended = false
+  }
+
+  func loadImagesForOnscreenCells () {
+    if let pathsArray = tableView.indexPathsForVisibleRows {
+      var allPendingOperations = Set(pendingOperations.downloadsInProgress.keys)
+      allPendingOperations = allPendingOperations.union(pendingOperations.filtrationsInProgress.keys)
+      
+      var toBeCancelled = allPendingOperations
+      let visiblePaths = Set(pathsArray)
+      toBeCancelled = toBeCancelled.subtracting(visiblePaths)
+      
+      var toBeStarted = visiblePaths
+      toBeStarted = toBeStarted.subtracting(allPendingOperations)
+      
+      for indexPath in toBeCancelled {
+        if let pendingDownload = pendingOperations.downloadsInProgress[indexPath] {
+          pendingDownload.cancel()
+        }
+        pendingOperations.downloadsInProgress.removeValue(forKey: indexPath)
+        if let pendingFiltration = pendingOperations.filtrationsInProgress[indexPath] {
+          pendingFiltration.cancel()
+        }
+        pendingOperations.filtrationsInProgress.removeValue(forKey: indexPath)
+      }
+      
+      for indexPath in toBeStarted {
+        let indexPath = indexPath as IndexPath
+        let recordToProcess = self.photos[indexPath.row]
+        startOperationsForPhotoRecord(recordToProcess, indexPath: indexPath)
+      }
+    }
   }
   
 }
